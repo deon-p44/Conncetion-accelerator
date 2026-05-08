@@ -22,6 +22,13 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/* Force light mode everywhere */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"],
+.main, .stApp, [data-testid="stAppViewBlockContainer"] {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+
 /* Hide default Streamlit chrome */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
@@ -30,6 +37,11 @@ header {visibility: hidden;}
 div[data-testid="stToolbar"] {display: none;}
 div[data-testid="stDecoration"] {display: none;}
 .viewerBadge_container__r5tak {display: none;}
+
+/* Force all iframes to have white background */
+iframe {
+    background: #FFFFFF !important;
+}
 
 .main .block-container {
     padding-top: 0 !important;
@@ -79,10 +91,10 @@ div[data-testid="stDecoration"] {display: none;}
 SHARED_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
+html, body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: transparent;
-    color: #0F172A;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
 }
@@ -226,7 +238,7 @@ def render_topbar(n_files, total):
     <html><head><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ background: transparent; }}
+    body {{ background: #FFFFFF !important; }}
     .topbar {{
         background: #021c6b;
         padding: 0 2.5rem;
@@ -261,7 +273,7 @@ def render_kpis(total, in_network, out_network):
     <html><head><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ background: transparent; font-family: 'Inter', sans-serif; }}
+    body {{ background: #FFFFFF !important; font-family: 'Inter', sans-serif; }}
     .kpis {{ display: flex; gap: 20px; padding: 4px; }}
     .kpi {{
         flex: 1;
@@ -540,7 +552,7 @@ def render_export_cards():
     <html><head><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: transparent; font-family: 'Inter', sans-serif; }
+    body { background: #FFFFFF !important; font-family: 'Inter', sans-serif; }
     .section-title {
         font-size: 1.05rem; font-weight: 700; color: #0F172A;
         margin: 0.5rem 0 1.2rem 0; display: flex; align-items: center; gap: 10px;
@@ -666,7 +678,7 @@ def render_file_chips(files_info):
     <html><head><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ background: transparent; font-family: 'Inter', sans-serif; }}
+    body {{ background: #FFFFFF !important; font-family: 'Inter', sans-serif; }}
     .file-chip {{
         display: flex; align-items: center; gap: 10px;
         background: #F8F9FC; border: 1px solid #E2E8F0;
