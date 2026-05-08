@@ -81,6 +81,38 @@ iframe {
     border-radius: 10px;
     font-weight: 600;
 }
+
+/* Fix ALL buttons to be visible on white background */
+button[kind="secondary"],
+.stButton > button[kind="secondary"],
+.stDownloadButton > button[kind="secondary"] {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #E2E8F0 !important;
+}
+button[kind="secondary"]:hover,
+.stButton > button[kind="secondary"]:hover,
+.stDownloadButton > button[kind="secondary"]:hover {
+    background-color: #F8F9FC !important;
+    border-color: #4F4CF3 !important;
+    color: #4F4CF3 !important;
+}
+
+button[kind="primary"],
+.stButton > button[kind="primary"],
+.stDownloadButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #021c6b, #4F4CF3) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+}
+
+/* Force all text to be dark on white */
+.stSelectbox label, .stTextInput label {
+    color: #0F172A !important;
+}
+p, span, label, div {
+    color: #0F172A;
+}
 </style>
 """, unsafe_allow_html=True)
 
