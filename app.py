@@ -1,9 +1,9 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from bs4 import BeautifulSoup
 import io
-import re
-from collections import Counter
+import html as html_lib
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Page Config
@@ -16,370 +16,28 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Custom CSS — exact p44 branding from original HTML
+# Minimal Streamlit overrides (only things st.markdown CAN handle)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-:root {
-    --p44-navy:    #021c6b;
-    --p44-blue:    #0072ec;
-    --p44-indigo:  #4F4CF3;
-    --p44-deep:    #16147F;
-    --p44-mid:     #3836D4;
-    --p44-light:   #EEF2FF;
-    --p44-surface: #F8F9FC;
-    --text-primary:   #0F172A;
-    --text-secondary: #64748B;
-    --border:         #E2E8F0;
-}
-
-/* Hide default Streamlit elements */
+/* Hide default Streamlit chrome */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 .stDeployButton {display: none;}
 div[data-testid="stToolbar"] {display: none;}
 div[data-testid="stDecoration"] {display: none;}
+.viewerBadge_container__r5tak {display: none;}
 
-/* Main container */
 .main .block-container {
     padding-top: 0 !important;
-    padding-bottom: 2rem;
+    padding-bottom: 1rem;
     max-width: 1400px;
 }
 
-/* ── Top Bar ───────────────────────────────────────────── */
-.topbar {
-    background: #021c6b;
-    padding: 0 2.5rem;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    margin: -1rem -4rem 1.5rem -4rem;
-    width: calc(100% + 8rem);
-}
-.topbar-logo {
-    width: 32px; height: 32px;
-    background: linear-gradient(135deg, #4F4CF3, #0072ec);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.95rem;
-}
-.topbar-title { color: #fff; font-weight: 600; font-size: 0.95rem; flex: 1; }
-.topbar-files { color: rgba(255,255,255,0.5); font-size: 0.8rem; }
-
-/* ── Landing Page ──────────────────────────────────────── */
-.landing-container {
-    min-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background:
-        radial-gradient(ellipse at 20% 50%, rgba(79,76,243,0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 50%, rgba(0,114,236,0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 0%, rgba(2,28,107,0.04) 0%, transparent 60%),
-        #FFFFFF;
-    padding: 2rem;
-    text-align: center;
-    margin: -1rem -4rem;
-    width: calc(100% + 8rem);
-}
-.landing-logo {
-    width: 80px; height: 80px;
-    background: linear-gradient(135deg, #021c6b 0%, #4F4CF3 100%);
-    border-radius: 20px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2.2rem;
-    margin: 0 auto 2rem auto;
-    box-shadow: 0 12px 40px rgba(2,28,107,0.2);
-}
-.landing-title {
-    font-size: 2.4rem;
-    font-weight: 800;
-    color: #021c6b;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.5rem;
-    font-family: 'Inter', sans-serif;
-}
-.landing-subtitle {
-    font-size: 1.05rem;
-    color: #64748B;
-    margin-bottom: 2rem;
-    font-weight: 400;
-}
-
-/* ── Upload Card ───────────────────────────────────────── */
-.upload-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 20px;
-    padding: 2rem 3rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-    max-width: 520px;
-    width: 100%;
-    margin: 0 auto;
-}
-.upload-formats {
-    display: inline-flex;
-    gap: 6px;
-    margin-top: 1rem;
-    justify-content: center;
-}
-.format-tag {
-    background: rgba(79,76,243,0.1);
-    color: #4F4CF3;
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 20px;
-    letter-spacing: 0.03em;
-}
-
-/* ── Landing Features ──────────────────────────────────── */
-.landing-features {
-    display: flex;
-    gap: 2rem;
-    margin-top: 2.5rem;
-    justify-content: center;
-}
-.landing-feature { text-align: center; }
-.landing-feature-icon { font-size: 1.4rem; margin-bottom: 0.4rem; }
-.landing-feature-label {
-    font-size: 0.78rem;
-    color: #64748B;
-    font-weight: 500;
-}
-
-/* ── File Chips ────────────────────────────────────────── */
-.file-chip {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #F8F9FC;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 0.85rem;
-    margin-bottom: 8px;
-}
-.file-chip-icon { font-size: 1.1rem; }
-.file-chip-name { flex: 1; font-weight: 500; color: #0F172A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-chip-count {
-    background: #EEF2FF;
-    color: #4F4CF3;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 12px;
-}
-
-/* ── KPI Cards ─────────────────────────────────────────── */
-.kpis {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 2rem;
-}
-.kpi {
-    flex: 1;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 16px;
-    padding: 1.5rem 1.8rem;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    transition: box-shadow 0.2s;
-}
-.kpi:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
-.kpi::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 4px;
-}
-.kpi-total::before  { background: linear-gradient(90deg, #021c6b, #4F4CF3); }
-.kpi-in::before     { background: linear-gradient(90deg, #059669, #34D399); }
-.kpi-out::before    { background: linear-gradient(90deg, #DC2626, #FB923C); }
-
-.kpi-value {
-    font-size: 2.8rem;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    font-family: 'Inter', sans-serif;
-}
-.kpi-total .kpi-value  { color: #021c6b; }
-.kpi-in .kpi-value     { color: #059669; }
-.kpi-out .kpi-value    { color: #DC2626; }
-
-.kpi-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #64748B;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 6px;
-}
-.kpi-icon {
-    position: absolute;
-    top: 1.2rem; right: 1.5rem;
-    font-size: 1.8rem;
-    opacity: 0.15;
-}
-
-/* ── Section Titles ────────────────────────────────────── */
-.section-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #0F172A;
-    margin: 0.5rem 0 1rem 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Inter', sans-serif;
-}
-.section-title .dot {
-    width: 8px; height: 8px;
-    background: #4F4CF3;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-/* ── Badges ────────────────────────────────────────────── */
-.badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.73rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-}
-.badge-in       { background: #DBEAFE; color: #1E40AF; }
-.badge-out      { background: #FFF1F2; color: #9F1239; }
-.badge-active   { background: #D1FAE5; color: #065F46; }
-.badge-instant  { background: #C7D2FE; color: #3730A3; }
-.badge-dev      { background: #FEF3C7; color: #92400E; }
-.badge-inactive { background: #FEE2E2; color: #991B1B; }
-.badge-new      { background: #FCE7F3; color: #9D174D; }
-.badge-unknown  { background: #F1F5F9; color: #64748B; }
-
-/* ── Legend ─────────────────────────────────────────────── */
-.legend {
-    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 1.2rem;
-    padding: 10px 16px;
-    background: #F8F9FC;
-    border-radius: 10px;
-    border: 1px solid #E2E8F0;
-}
-
-/* ── Data Table ────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
-table.data-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    border: 1px solid #E2E8F0;
-    font-size: 0.88rem;
-    font-family: 'Inter', sans-serif;
-}
-table.data-table thead th {
-    background: #021c6b;
-    color: #fff;
-    padding: 13px 18px;
-    text-align: left;
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-}
-table.data-table tbody td {
-    padding: 12px 18px;
-    border-bottom: 1px solid #F1F5F9;
-    color: #0F172A;
-}
-table.data-table tbody tr:hover { background: #FAFBFF; }
-table.data-table tbody tr:last-child td { border-bottom: none; }
-
-/* ── Pivot Table ───────────────────────────────────────── */
-table.pivot-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    border: 1px solid #E2E8F0;
-    font-size: 0.88rem;
-    min-width: 350px;
-    font-family: 'Inter', sans-serif;
-}
-table.pivot-table thead th {
-    background: #021c6b;
-    color: #fff;
-    padding: 13px 22px;
-    text-align: center;
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-table.pivot-table thead th:first-child { text-align: left; }
-table.pivot-table tbody td {
-    padding: 11px 22px;
-    border-bottom: 1px solid #F1F5F9;
-    text-align: center;
-    color: #0F172A;
-}
-table.pivot-table tbody td:first-child { text-align: left; font-weight: 600; color: #4F4CF3; }
-table.pivot-table tbody tr:hover { background: #FAFBFF; }
-table.pivot-table tr.total-row td {
-    font-weight: 700;
-    background: #EEF2FF;
-    border-top: 2px solid #4F4CF3;
-    color: #021c6b;
-}
-
-/* ── Export Cards ──────────────────────────────────────── */
-.export-cards { display: flex; gap: 20px; flex-wrap: wrap; }
-.export-card {
-    flex: 1; min-width: 280px;
-    border: 1px solid #E2E8F0;
-    border-radius: 16px;
-    padding: 2rem;
-    background: #fff;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    transition: box-shadow 0.2s;
-}
-.export-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
-.export-card-icon {
-    width: 48px; height: 48px;
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem;
-    margin-bottom: 1rem;
-}
-.export-card h4 { color: #0F172A; font-size: 1rem; margin-bottom: 0.4rem; }
-.export-card p { color: #64748B; font-size: 0.85rem; margin-bottom: 1.2rem; line-height: 1.5; }
-
-/* ── Table Caption ─────────────────────────────────────── */
-.table-caption {
-    font-size: 0.8rem;
-    color: #64748B;
-    margin-top: 0.75rem;
-}
-
-/* ── Streamlit overrides ───────────────────────────────── */
+/* Tab styling */
 .stTabs [data-baseweb="tab-list"] {
     gap: 4px;
     background: #F8F9FC;
@@ -405,31 +63,51 @@ table.pivot-table tr.total-row td {
 .stTabs [data-baseweb="tab-highlight"] { display: none; }
 .stTabs [data-baseweb="tab-border"] { display: none; }
 
-/* Streamlit download buttons */
+/* Download buttons */
 .stDownloadButton > button {
     width: 100%;
-    padding: 12px;
-    border: none;
     border-radius: 10px;
-    font-size: 0.88rem;
     font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
 }
-
-/* Selectbox and text input styling */
-div[data-baseweb="select"] {
-    border-radius: 10px !important;
-}
-
-/* Hide streamlit branding */
-.viewerBadge_container__r5tak { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SVG Path → Status mapping (exact same logic as original HTML)
+# Shared CSS for all st.components.v1.html() blocks
+# ══════════════════════════════════════════════════════════════════════════════
+SHARED_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: transparent;
+    color: #0F172A;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.badge-in       { background: #DBEAFE; color: #1E40AF; }
+.badge-out      { background: #FFF1F2; color: #9F1239; }
+.badge-active   { background: #D1FAE5; color: #065F46; }
+.badge-instant  { background: #C7D2FE; color: #3730A3; }
+.badge-dev      { background: #FEF3C7; color: #92400E; }
+.badge-inactive { background: #FEE2E2; color: #991B1B; }
+.badge-new      { background: #FCE7F3; color: #9D174D; }
+.badge-unknown  { background: #F1F5F9; color: #64748B; }
+"""
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SVG Path → Status mapping
 # ══════════════════════════════════════════════════════════════════════════════
 STATUS_MAP = [
     ('M9 16.17',   'Active Connection'),
@@ -458,15 +136,17 @@ def status_badge_class(s):
 def network_badge_class(n):
     return 'badge-in' if n == 'In-network' else 'badge-out'
 
+def esc(s):
+    return html_lib.escape(str(s)) if s else ''
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Parse HTML file (exact same logic as original)
+# Parse HTML file
 # ══════════════════════════════════════════════════════════════════════════════
 def parse_html(html_content, source_name):
-    soup = BeautifulSoup(html_content, 'lxml')
+    soup = BeautifulSoup(html_content, 'html.parser')
     tables = soup.find_all('table')
     carriers = []
-
     for ti, table in enumerate(tables):
         network = 'In-network' if ti == 0 else 'Out-of-network'
         rows = table.find_all('tr')
@@ -497,15 +177,14 @@ def parse_html(html_content, source_name):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Generate HTML report (exact same as original export)
+# Generate reports
 # ══════════════════════════════════════════════════════════════════════════════
 def generate_html_report(df):
     in_n = len(df[df['P44 Network'] == 'In-network'])
     rows_html = ""
     for i, (_, c) in enumerate(df.iterrows()):
-        rows_html += f"<tr><td>{i+1}</td><td>{c['Carrier Name']}</td><td>{c['P44 Network']}</td><td>{c['Connection Status']}</td><td>{c['Function']}</td></tr>"
-
-    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>Connection Accelerator Report</title>
+        rows_html += f"<tr><td>{i+1}</td><td>{esc(c['Carrier Name'])}</td><td>{esc(c['P44 Network'])}</td><td>{esc(c['Connection Status'])}</td><td>{esc(c['Function'])}</td></tr>"
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>Connection Accelerator Report</title>
 <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Segoe UI',sans-serif;background:#fff;color:#1E293B;padding:2rem 3rem}}
 h1{{color:#021c6b;font-size:1.6rem;border-bottom:3px solid #4F4CF3;padding-bottom:.5rem;margin-bottom:.5rem}}
 .meta{{color:#64748B;font-size:.9rem;margin-bottom:2rem}}h2{{color:#4F4CF3;font-size:1.15rem;margin:2rem 0 .75rem}}
@@ -514,21 +193,15 @@ td{{padding:8px 14px;border-bottom:1px solid #F1F5F9;font-size:.88rem}}tr:hover{
 <h1>🔗 Connection Accelerator Report</h1>
 <p class="meta">{len(df)} carriers | In-network: {in_n} | Out-of-network: {len(df)-in_n}</p>
 <h2>Carrier List</h2><table><thead><tr><th>#</th><th>Carrier Name</th><th>P44 Network</th><th>Connection Status</th><th>Function</th></tr></thead><tbody>{rows_html}</tbody></table></body></html>"""
-    return html
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Generate Excel report (exact same 3 sheets as original)
-# ══════════════════════════════════════════════════════════════════════════════
 def generate_excel_report(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # Sheet 1: Carrier List
         carrier_df = df.copy()
         carrier_df.insert(0, '#', range(1, len(carrier_df) + 1))
         carrier_df.to_excel(writer, sheet_name='Carrier List', index=False)
 
-        # Sheet 2: Status Pivot
         pivot_counts = df['Connection Status'].value_counts().reset_index()
         pivot_counts.columns = ['Connection Status', 'Carrier Count']
         pivot_counts = pivot_counts.sort_values('Carrier Count', ascending=False)
@@ -536,213 +209,105 @@ def generate_excel_report(df):
         pivot_df = pd.concat([pivot_counts, total_row], ignore_index=True)
         pivot_df.to_excel(writer, sheet_name='Status Pivot', index=False)
 
-        # Sheet 3: Network × Status cross-tab
         cross = pd.crosstab(df['Connection Status'], df['P44 Network'], margins=True, margins_name='Total')
-        # Ensure columns are in right order
-        cols = []
-        if 'In-network' in cross.columns:
-            cols.append('In-network')
-        if 'Out-of-network' in cross.columns:
-            cols.append('Out-of-network')
-        if 'Total' in cross.columns:
-            cols.append('Total')
+        cols = [c for c in ['In-network', 'Out-of-network', 'Total'] if c in cross.columns]
         cross = cross[cols]
         cross.index.name = 'Connection Status'
         cross.to_excel(writer, sheet_name='Network × Status')
-
     output.seek(0)
     return output
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Render HTML tables (to match exact original styling)
+# Render components using st.components.v1.html (preserves ALL CSS)
 # ══════════════════════════════════════════════════════════════════════════════
-def render_carrier_table(df):
-    if df.empty:
-        return '<p style="color:#64748B;padding:2.5rem;text-align:center;">No carriers match the current filters.</p>'
-
-    rows = ""
-    for i, (_, c) in enumerate(df.iterrows()):
-        net_badge = network_badge_class(c['P44 Network'])
-        stat_badge = status_badge_class(c['Connection Status'])
-        rows += f"""<tr>
-            <td>{i+1}</td>
-            <td style="font-weight:500;">{c['Carrier Name']}</td>
-            <td><span class="badge {net_badge}">{c['P44 Network']}</span></td>
-            <td><span class="badge {stat_badge}">{c['Connection Status']}</span></td>
-            <td>{c['Function']}</td>
-        </tr>"""
-
-    return f"""<div class="table-wrap">
-    <table class="data-table"><thead><tr>
-        <th>#</th><th>Carrier Name</th><th>P44 Network</th><th>Connection Status</th><th>Function</th>
-    </tr></thead><tbody>{rows}</tbody></table></div>"""
-
-
-def render_pivot_table(df):
-    counts = df['Connection Status'].value_counts().sort_values(ascending=False)
-    total = counts.sum()
-    rows = ""
-    for status, count in counts.items():
-        rows += f"<tr><td>{status}</td><td>{count}</td></tr>"
-    rows += f'<tr class="total-row"><td>Total</td><td>{total}</td></tr>'
-
-    return f"""<div class="table-wrap">
-    <table class="pivot-table"><thead><tr><th>Connection Status</th><th>Carrier Count</th></tr></thead>
-    <tbody>{rows}</tbody></table></div>"""
-
-
-def render_cross_tab(df):
-    statuses = sorted(df['Connection Status'].unique())
-    nets = ['In-network', 'Out-of-network']
-
-    header = "<th>Connection Status</th>" + "".join(f"<th>{n}</th>" for n in nets) + "<th>Total</th>"
-    rows = ""
-    col_totals = {n: 0 for n in nets}
-    grand_total = 0
-
-    for s in statuses:
-        row_total = 0
-        cells = f"<td>{s}</td>"
-        for n in nets:
-            v = len(df[(df['Connection Status'] == s) & (df['P44 Network'] == n)])
-            cells += f"<td>{v}</td>"
-            row_total += v
-            col_totals[n] += v
-        grand_total += row_total
-        cells += f"<td>{row_total}</td>"
-        rows += f"<tr>{cells}</tr>"
-
-    total_cells = "<td>Total</td>" + "".join(f"<td>{col_totals[n]}</td>" for n in nets) + f"<td>{grand_total}</td>"
-    rows += f'<tr class="total-row">{total_cells}</tr>'
-
-    return f"""<div class="table-wrap">
-    <table class="pivot-table"><thead><tr>{header}</tr></thead>
-    <tbody>{rows}</tbody></table></div>"""
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Session State Init
-# ══════════════════════════════════════════════════════════════════════════════
-if 'carriers' not in st.session_state:
-    st.session_state.carriers = []
-if 'files' not in st.session_state:
-    st.session_state.files = {}
-if 'page' not in st.session_state:
-    st.session_state.page = 'landing'
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# LANDING PAGE
-# ══════════════════════════════════════════════════════════════════════════════
-if st.session_state.page == 'landing':
-    st.markdown("""
-    <div class="landing-container">
-        <div class="landing-logo">🔗</div>
-        <h1 class="landing-title">Connection Accelerator</h1>
-        <p class="landing-subtitle">Upload p44 Connection Center HTML exports to analyze carrier connections</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Centered upload section
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("""
-        <div style="text-align:center; margin-bottom:0.5rem;">
-            <div class="upload-formats">
-                <span class="format-tag">.HTML</span>
-                <span class="format-tag">.HTM</span>
-                <span class="format-tag">MULTIPLE FILES</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        uploaded_files = st.file_uploader(
-            "Drop HTML files here or click to browse",
-            type=['html', 'htm'],
-            accept_multiple_files=True,
-            help="p44 Movement → Network → Connection Center",
-            key="file_uploader"
-        )
-
-        if uploaded_files:
-            for uf in uploaded_files:
-                if uf.name not in st.session_state.files:
-                    content = uf.read().decode('utf-8', errors='ignore')
-                    st.session_state.files[uf.name] = content
-
-            # Show file chips
-            for fname, content in st.session_state.files.items():
-                count = len(parse_html(content, fname))
-                st.markdown(f"""
-                <div class="file-chip">
-                    <span class="file-chip-icon">📄</span>
-                    <span class="file-chip-name">{fname}</span>
-                    <span class="file-chip-count">{count} carriers</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-            # Analyze button
-            total_files = len(st.session_state.files)
-            if st.button(
-                f"Analyze {total_files} File{'s' if total_files > 1 else ''}",
-                type="primary",
-                use_container_width=True
-            ):
-                all_carriers = []
-                for fname, content in st.session_state.files.items():
-                    all_carriers.extend(parse_html(content, fname))
-                st.session_state.carriers = all_carriers
-                st.session_state.page = 'dashboard'
-                st.rerun()
-
-        # Landing features
-        st.markdown("""
-        <div class="landing-features">
-            <div class="landing-feature">
-                <div class="landing-feature-icon">📊</div>
-                <div class="landing-feature-label">Extract & Consolidate</div>
-            </div>
-            <div class="landing-feature">
-                <div class="landing-feature-icon">🔍</div>
-                <div class="landing-feature-label">Pivot Analysis</div>
-            </div>
-            <div class="landing-feature">
-                <div class="landing-feature-icon">💾</div>
-                <div class="landing-feature-label">Export Excel & HTML</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# DASHBOARD PAGE
-# ══════════════════════════════════════════════════════════════════════════════
-elif st.session_state.page == 'dashboard':
-    df = pd.DataFrame(st.session_state.carriers)
-    total = len(df)
-    in_network = len(df[df['P44 Network'] == 'In-network']) if not df.empty else 0
-    out_network = total - in_network
-    n_files = len(st.session_state.files)
-
-    # Top bar
-    st.markdown(f"""
+def render_topbar(n_files, total):
+    components.html(f"""
+    <html><head><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ background: transparent; }}
+    .topbar {{
+        background: #021c6b;
+        padding: 0 2.5rem;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        border-radius: 0;
+        font-family: 'Inter', sans-serif;
+    }}
+    .topbar-logo {{
+        width: 32px; height: 32px;
+        background: linear-gradient(135deg, #4F4CF3, #0072ec);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem;
+    }}
+    .topbar-title {{ color: #fff; font-weight: 600; font-size: 0.95rem; flex: 1; }}
+    .topbar-files {{ color: rgba(255,255,255,0.5); font-size: 0.8rem; }}
+    </style></head><body>
     <div class="topbar">
         <div class="topbar-logo">🔗</div>
         <div class="topbar-title">Connection Accelerator Analysis</div>
         <div class="topbar-files">{n_files} file(s) · {total} carriers</div>
     </div>
-    """, unsafe_allow_html=True)
+    </body></html>
+    """, height=58)
 
-    # Back button
-    if st.button("← Upload More", key="back_btn"):
-        st.session_state.page = 'landing'
-        st.session_state.files = {}
-        st.session_state.carriers = []
-        st.rerun()
 
-    # KPI Cards
-    st.markdown(f"""
+def render_kpis(total, in_network, out_network):
+    components.html(f"""
+    <html><head><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ background: transparent; font-family: 'Inter', sans-serif; }}
+    .kpis {{ display: flex; gap: 20px; padding: 4px; }}
+    .kpi {{
+        flex: 1;
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 1.5rem 1.8rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }}
+    .kpi:hover {{ box-shadow: 0 6px 20px rgba(0,0,0,0.07); }}
+    .kpi::before {{
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+    }}
+    .kpi-total::before  {{ background: linear-gradient(90deg, #021c6b, #4F4CF3); }}
+    .kpi-in::before     {{ background: linear-gradient(90deg, #059669, #34D399); }}
+    .kpi-out::before    {{ background: linear-gradient(90deg, #DC2626, #FB923C); }}
+    .kpi-value {{
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+    }}
+    .kpi-total .kpi-value  {{ color: #021c6b; }}
+    .kpi-in .kpi-value     {{ color: #059669; }}
+    .kpi-out .kpi-value    {{ color: #DC2626; }}
+    .kpi-label {{
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 6px;
+    }}
+    .kpi-icon {{
+        position: absolute;
+        top: 1.2rem; right: 1.5rem;
+        font-size: 1.8rem;
+        opacity: 0.15;
+    }}
+    </style></head><body>
     <div class="kpis">
         <div class="kpi kpi-total">
             <div class="kpi-value">{total}</div>
@@ -760,27 +325,447 @@ elif st.session_state.page == 'dashboard':
             <div class="kpi-icon">⚠️</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    </body></html>
+    """, height=140)
+
+
+def render_legend():
+    components.html(f"""
+    <html><head><style>
+    {SHARED_CSS}
+    .legend {{
+        display: flex; gap: 12px; flex-wrap: wrap;
+        padding: 10px 16px;
+        background: #F8F9FC;
+        border-radius: 10px;
+        border: 1px solid #E2E8F0;
+    }}
+    </style></head><body>
+    <div class="legend">
+        <span class="badge badge-instant">Instant Live</span>
+        <span class="badge badge-active">Active</span>
+        <span class="badge badge-dev">In Development</span>
+        <span class="badge badge-inactive">Inactive</span>
+        <span class="badge badge-new">New Integration Required</span>
+    </div>
+    </body></html>
+    """, height=52)
+
+
+def render_carrier_table_component(df, total):
+    if df.empty:
+        components.html("""<html><body><p style="color:#64748B;padding:2.5rem;text-align:center;font-family:Inter,sans-serif;">
+        No carriers match the current filters.</p></body></html>""", height=80)
+        return
+
+    rows = ""
+    for i, (_, c) in enumerate(df.iterrows()):
+        net_cls = network_badge_class(c['P44 Network'])
+        stat_cls = status_badge_class(c['Connection Status'])
+        rows += f"""<tr>
+            <td>{i+1}</td>
+            <td style="font-weight:500;">{esc(c['Carrier Name'])}</td>
+            <td><span class="badge {net_cls}">{esc(c['P44 Network'])}</span></td>
+            <td><span class="badge {stat_cls}">{esc(c['Connection Status'])}</span></td>
+            <td>{esc(c['Function'])}</td>
+        </tr>"""
+
+    # Calculate height: header(46) + rows(45 each) + caption(30) + padding(20), max 800
+    height = min(46 + len(df) * 45 + 50, 800)
+
+    components.html(f"""
+    <html><head><style>
+    {SHARED_CSS}
+    .table-wrap {{ overflow-x: auto; overflow-y: auto; max-height: 700px; }}
+    table.data-table {{
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        border: 1px solid #E2E8F0;
+        font-size: 0.88rem;
+    }}
+    table.data-table thead th {{
+        background: #021c6b;
+        color: #fff;
+        padding: 13px 18px;
+        text-align: left;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }}
+    table.data-table tbody td {{
+        padding: 12px 18px;
+        border-bottom: 1px solid #F1F5F9;
+        color: #0F172A;
+    }}
+    table.data-table tbody tr:hover {{ background: #FAFBFF; }}
+    table.data-table tbody tr:last-child td {{ border-bottom: none; }}
+    .table-caption {{
+        font-size: 0.8rem;
+        color: #64748B;
+        margin-top: 0.75rem;
+    }}
+    </style></head><body>
+    <div class="table-wrap">
+    <table class="data-table"><thead><tr>
+        <th>#</th><th>Carrier Name</th><th>P44 Network</th><th>Connection Status</th><th>Function</th>
+    </tr></thead><tbody>{rows}</tbody></table>
+    </div>
+    <div class="table-caption">Showing {len(df)} of {total} carriers</div>
+    </body></html>
+    """, height=height, scrolling=True)
+
+
+def render_pivot_component(df):
+    counts = df['Connection Status'].value_counts().sort_values(ascending=False)
+    total_count = counts.sum()
+    rows = ""
+    for status, count in counts.items():
+        rows += f"<tr><td>{esc(status)}</td><td>{count}</td></tr>"
+    rows += f'<tr class="total-row"><td>Total</td><td>{total_count}</td></tr>'
+
+    height = 46 + (len(counts) + 1) * 42 + 20
+
+    components.html(f"""
+    <html><head><style>
+    {SHARED_CSS}
+    .section-title {{
+        font-size: 1.05rem; font-weight: 700; color: #0F172A;
+        margin: 0.5rem 0 1rem 0; display: flex; align-items: center; gap: 10px;
+    }}
+    .section-title .dot {{ width: 8px; height: 8px; background: #4F4CF3; border-radius: 50%; }}
+    .sub {{ color: #64748B; font-size: 0.88rem; margin-bottom: 1rem; }}
+    table.pivot-table {{
+        border-collapse: separate; border-spacing: 0; border-radius: 14px;
+        overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        border: 1px solid #E2E8F0; font-size: 0.88rem; min-width: 350px;
+    }}
+    table.pivot-table thead th {{
+        background: #021c6b; color: #fff; padding: 13px 22px;
+        text-align: center; font-size: 0.78rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.05em;
+    }}
+    table.pivot-table thead th:first-child {{ text-align: left; }}
+    table.pivot-table tbody td {{
+        padding: 11px 22px; border-bottom: 1px solid #F1F5F9;
+        text-align: center; color: #0F172A;
+    }}
+    table.pivot-table tbody td:first-child {{ text-align: left; font-weight: 600; color: #4F4CF3; }}
+    table.pivot-table tbody tr:hover {{ background: #FAFBFF; }}
+    table.pivot-table tr.total-row td {{
+        font-weight: 700; background: #EEF2FF;
+        border-top: 2px solid #4F4CF3; color: #021c6b;
+    }}
+    </style></head><body>
+    <div class="section-title"><span class="dot"></span> Connection Status Pivot</div>
+    <p class="sub">Carrier count by Connection Status</p>
+    <table class="pivot-table"><thead><tr><th>Connection Status</th><th>Carrier Count</th></tr></thead>
+    <tbody>{rows}</tbody></table>
+    </body></html>
+    """, height=height)
+
+
+def render_crosstab_component(df):
+    statuses = sorted(df['Connection Status'].unique())
+    nets = ['In-network', 'Out-of-network']
+    header = "<th>Connection Status</th>" + "".join(f"<th>{esc(n)}</th>" for n in nets) + "<th>Total</th>"
+    rows = ""
+    col_totals = {n: 0 for n in nets}
+    grand_total = 0
+    for s in statuses:
+        row_total = 0
+        cells = f"<td>{esc(s)}</td>"
+        for n in nets:
+            v = len(df[(df['Connection Status'] == s) & (df['P44 Network'] == n)])
+            cells += f"<td>{v}</td>"
+            row_total += v
+            col_totals[n] += v
+        grand_total += row_total
+        cells += f"<td>{row_total}</td>"
+        rows += f"<tr>{cells}</tr>"
+    total_cells = "<td>Total</td>" + "".join(f"<td>{col_totals[n]}</td>" for n in nets) + f"<td>{grand_total}</td>"
+    rows += f'<tr class="total-row">{total_cells}</tr>'
+
+    height = 46 + (len(statuses) + 1) * 42 + 80
+
+    components.html(f"""
+    <html><head><style>
+    {SHARED_CSS}
+    .section-title {{
+        font-size: 1.05rem; font-weight: 700; color: #0F172A;
+        margin: 1.5rem 0 1rem 0; display: flex; align-items: center; gap: 10px;
+    }}
+    .section-title .dot {{ width: 8px; height: 8px; background: #4F4CF3; border-radius: 50%; }}
+    .sub {{ color: #64748B; font-size: 0.88rem; margin-bottom: 1rem; }}
+    table.pivot-table {{
+        border-collapse: separate; border-spacing: 0; border-radius: 14px;
+        overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        border: 1px solid #E2E8F0; font-size: 0.88rem; min-width: 350px;
+    }}
+    table.pivot-table thead th {{
+        background: #021c6b; color: #fff; padding: 13px 22px;
+        text-align: center; font-size: 0.78rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.05em;
+    }}
+    table.pivot-table thead th:first-child {{ text-align: left; }}
+    table.pivot-table tbody td {{
+        padding: 11px 22px; border-bottom: 1px solid #F1F5F9;
+        text-align: center; color: #0F172A;
+    }}
+    table.pivot-table tbody td:first-child {{ text-align: left; font-weight: 600; color: #4F4CF3; }}
+    table.pivot-table tbody tr:hover {{ background: #FAFBFF; }}
+    table.pivot-table tr.total-row td {{
+        font-weight: 700; background: #EEF2FF;
+        border-top: 2px solid #4F4CF3; color: #021c6b;
+    }}
+    </style></head><body>
+    <div class="section-title"><span class="dot"></span> Network × Status Cross-Tab</div>
+    <p class="sub">Carrier count by Connection Status and P44 Network</p>
+    <table class="pivot-table"><thead><tr>{header}</tr></thead>
+    <tbody>{rows}</tbody></table>
+    </body></html>
+    """, height=height)
+
+
+def render_export_cards():
+    components.html("""
+    <html><head><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; font-family: 'Inter', sans-serif; }
+    .section-title {
+        font-size: 1.05rem; font-weight: 700; color: #0F172A;
+        margin: 0.5rem 0 1.2rem 0; display: flex; align-items: center; gap: 10px;
+    }
+    .section-title .dot { width: 8px; height: 8px; background: #4F4CF3; border-radius: 50%; }
+    .export-cards { display: flex; gap: 20px; flex-wrap: wrap; }
+    .export-card {
+        flex: 1; min-width: 280px;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 2rem;
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .export-card-icon {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+    }
+    .export-card h4 { color: #0F172A; font-size: 1rem; margin-bottom: 0.4rem; }
+    .export-card p { color: #64748B; font-size: 0.85rem; line-height: 1.5; }
+    </style></head><body>
+    <div class="section-title"><span class="dot"></span> Export Consolidated Report</div>
+    <div class="export-cards">
+        <div class="export-card">
+            <div class="export-card-icon" style="background:#D1FAE5;">📗</div>
+            <h4>Excel Report</h4>
+            <p>Three sheets: Carrier List, Status Pivot, and Network × Status cross-tab.</p>
+        </div>
+        <div class="export-card">
+            <div class="export-card-icon" style="background:#EEF2FF;">🌐</div>
+            <h4>HTML Report</h4>
+            <p>Styled standalone HTML report with carrier table and pivot summaries.</p>
+        </div>
+    </div>
+    </body></html>
+    """, height=220)
+
+
+def render_landing():
+    components.html("""
+    <html><head><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Inter', sans-serif;
+        background:
+            radial-gradient(ellipse at 20% 50%, rgba(79,76,243,0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 50%, rgba(0,114,236,0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 0%, rgba(2,28,107,0.04) 0%, transparent 60%),
+            #FFFFFF;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 300px; padding: 2rem; text-align: center;
+    }
+    .landing-logo {
+        width: 80px; height: 80px;
+        background: linear-gradient(135deg, #021c6b 0%, #4F4CF3 100%);
+        border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 12px 40px rgba(2,28,107,0.2);
+    }
+    .landing-title {
+        font-size: 2.4rem; font-weight: 800; color: #021c6b;
+        letter-spacing: -0.03em; margin-bottom: 0.5rem;
+    }
+    .landing-subtitle {
+        font-size: 1.05rem; color: #64748B; margin-bottom: 1rem; font-weight: 400;
+    }
+    .landing-features {
+        display: flex; gap: 2rem; margin-top: 1.5rem;
+    }
+    .landing-feature { text-align: center; }
+    .landing-feature-icon { font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .landing-feature-label { font-size: 0.78rem; color: #64748B; font-weight: 500; }
+    .upload-formats { display: inline-flex; gap: 6px; margin-top: 1rem; }
+    .format-tag {
+        background: rgba(79,76,243,0.1); color: #4F4CF3;
+        font-size: 0.72rem; font-weight: 600; padding: 3px 10px;
+        border-radius: 20px; letter-spacing: 0.03em;
+    }
+    </style></head><body>
+    <div class="landing-logo">🔗</div>
+    <h1 class="landing-title">Connection Accelerator</h1>
+    <p class="landing-subtitle">Upload p44 Connection Center HTML exports to analyze carrier connections</p>
+    <div class="upload-formats">
+        <span class="format-tag">.HTML</span>
+        <span class="format-tag">.HTM</span>
+        <span class="format-tag">MULTIPLE FILES</span>
+    </div>
+    <div class="landing-features">
+        <div class="landing-feature">
+            <div class="landing-feature-icon">📊</div>
+            <div class="landing-feature-label">Extract & Consolidate</div>
+        </div>
+        <div class="landing-feature">
+            <div class="landing-feature-icon">🔍</div>
+            <div class="landing-feature-label">Pivot Analysis</div>
+        </div>
+        <div class="landing-feature">
+            <div class="landing-feature-icon">💾</div>
+            <div class="landing-feature-label">Export Excel & HTML</div>
+        </div>
+    </div>
+    </body></html>
+    """, height=380)
+
+
+def render_file_chips(files_info):
+    """files_info: list of (name, count) tuples"""
+    chips = ""
+    for fname, count in files_info:
+        chips += f"""<div class="file-chip">
+            <span class="file-chip-icon">📄</span>
+            <span class="file-chip-name">{esc(fname)}</span>
+            <span class="file-chip-count">{count} carriers</span>
+        </div>"""
+    height = len(files_info) * 50 + 10
+    components.html(f"""
+    <html><head><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ background: transparent; font-family: 'Inter', sans-serif; }}
+    .file-chip {{
+        display: flex; align-items: center; gap: 10px;
+        background: #F8F9FC; border: 1px solid #E2E8F0;
+        border-radius: 10px; padding: 10px 14px; font-size: 0.85rem;
+        margin-bottom: 8px;
+    }}
+    .file-chip-icon {{ font-size: 1.1rem; }}
+    .file-chip-name {{ flex: 1; font-weight: 500; color: #0F172A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .file-chip-count {{ background: #EEF2FF; color: #4F4CF3; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; }}
+    </style></head><body>{chips}</body></html>
+    """, height=height)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Session State
+# ══════════════════════════════════════════════════════════════════════════════
+if 'carriers' not in st.session_state:
+    st.session_state.carriers = []
+if 'files' not in st.session_state:
+    st.session_state.files = {}
+if 'page' not in st.session_state:
+    st.session_state.page = 'landing'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LANDING PAGE
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == 'landing':
+    render_landing()
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        uploaded_files = st.file_uploader(
+            "Drop HTML files here or click to browse",
+            type=['html', 'htm'],
+            accept_multiple_files=True,
+            help="p44 Movement → Network → Connection Center",
+            key="file_uploader"
+        )
+
+        if uploaded_files:
+            for uf in uploaded_files:
+                if uf.name not in st.session_state.files:
+                    content = uf.read().decode('utf-8', errors='ignore')
+                    st.session_state.files[uf.name] = content
+
+            # Show file chips
+            files_info = []
+            for fname, content in st.session_state.files.items():
+                count = len(parse_html(content, fname))
+                files_info.append((fname, count))
+
+            if files_info:
+                render_file_chips(files_info)
+
+            total_files = len(st.session_state.files)
+            if st.button(
+                f"🔍 Analyze {total_files} File{'s' if total_files > 1 else ''}",
+                type="primary",
+                use_container_width=True
+            ):
+                all_carriers = []
+                for fname, content in st.session_state.files.items():
+                    all_carriers.extend(parse_html(content, fname))
+                st.session_state.carriers = all_carriers
+                st.session_state.page = 'dashboard'
+                st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD PAGE
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == 'dashboard':
+    df = pd.DataFrame(st.session_state.carriers)
+    total = len(df)
+    in_network = len(df[df['P44 Network'] == 'In-network']) if not df.empty else 0
+    out_network = total - in_network
+    n_files = len(st.session_state.files)
+
+    # Top bar
+    render_topbar(n_files, total)
+
+    # Back button
+    if st.button("← Upload More", key="back_btn"):
+        st.session_state.page = 'landing'
+        st.session_state.files = {}
+        st.session_state.carriers = []
+        st.rerun()
+
+    # KPI Cards
+    render_kpis(total, in_network, out_network)
 
     # Tabs
     tab1, tab2, tab3 = st.tabs(["📋 Carrier Table", "📊 Pivot Analysis", "💾 Export"])
 
-    # ── Tab 1: Carrier Table ────────────────────────────────────────────────
+    # ── Tab 1: Carrier Table ────────────────────────────────────────────
     with tab1:
-        st.markdown("""<div class="section-title"><span class="dot"></span> Consolidated Carrier List</div>""", unsafe_allow_html=True)
+        render_legend()
 
-        # Legend
-        st.markdown("""
-        <div class="legend">
-            <span class="badge badge-instant">Instant Live</span>
-            <span class="badge badge-active">Active</span>
-            <span class="badge badge-dev">In Development</span>
-            <span class="badge badge-inactive">Inactive</span>
-            <span class="badge badge-new">New Integration Required</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Filters
         fcol1, fcol2, fcol3 = st.columns([1, 1, 2])
         with fcol1:
             network_filter = st.selectbox(
@@ -802,7 +787,6 @@ elif st.session_state.page == 'dashboard':
                 key="filter_search"
             )
 
-        # Apply filters
         filtered = df.copy()
         if network_filter != "All":
             filtered = filtered[filtered['P44 Network'] == network_filter]
@@ -811,34 +795,19 @@ elif st.session_state.page == 'dashboard':
         if search_filter:
             filtered = filtered[filtered['Carrier Name'].str.lower().str.contains(search_filter.lower(), na=False)]
 
-        # Render table
-        st.markdown(render_carrier_table(filtered), unsafe_allow_html=True)
-        st.markdown(f'<div class="table-caption">Showing {len(filtered)} of {total} carriers</div>', unsafe_allow_html=True)
+        render_carrier_table_component(filtered, total)
 
-    # ── Tab 2: Pivot Analysis ───────────────────────────────────────────────
+    # ── Tab 2: Pivot Analysis ───────────────────────────────────────────
     with tab2:
-        st.markdown("""<div class="section-title"><span class="dot"></span> Connection Status Pivot</div>""", unsafe_allow_html=True)
-        st.markdown('<p style="color:#64748B; font-size:0.88rem; margin-bottom:1rem;">Carrier count by Connection Status</p>', unsafe_allow_html=True)
-        st.markdown(render_pivot_table(df), unsafe_allow_html=True)
+        render_pivot_component(df)
+        render_crosstab_component(df)
 
-        st.markdown("""<div class="section-title" style="margin-top:2.5rem;"><span class="dot"></span> Network × Status Cross-Tab</div>""", unsafe_allow_html=True)
-        st.markdown('<p style="color:#64748B; font-size:0.88rem; margin-bottom:1rem;">Carrier count by Connection Status and P44 Network</p>', unsafe_allow_html=True)
-        st.markdown(render_cross_tab(df), unsafe_allow_html=True)
-
-    # ── Tab 3: Export ───────────────────────────────────────────────────────
+    # ── Tab 3: Export ───────────────────────────────────────────────────
     with tab3:
-        st.markdown("""<div class="section-title"><span class="dot"></span> Export Consolidated Report</div>""", unsafe_allow_html=True)
+        render_export_cards()
 
         ecol1, ecol2 = st.columns(2)
-
         with ecol1:
-            st.markdown("""
-            <div class="export-card">
-                <div class="export-card-icon" style="background:#D1FAE5;">📗</div>
-                <h4>Excel Report</h4>
-                <p>Three sheets: Carrier List, Status Pivot, and Network × Status cross-tab.</p>
-            </div>
-            """, unsafe_allow_html=True)
             excel_data = generate_excel_report(df)
             st.download_button(
                 label="⬇ Download Excel Report",
@@ -848,15 +817,7 @@ elif st.session_state.page == 'dashboard':
                 use_container_width=True,
                 type="primary"
             )
-
         with ecol2:
-            st.markdown("""
-            <div class="export-card">
-                <div class="export-card-icon" style="background:#EEF2FF;">🌐</div>
-                <h4>HTML Report</h4>
-                <p>Styled standalone HTML report with carrier table and pivot summaries.</p>
-            </div>
-            """, unsafe_allow_html=True)
             html_report = generate_html_report(df)
             st.download_button(
                 label="⬇ Download HTML Report",
